@@ -63,7 +63,26 @@ async function loadComponent(url, scope) {
 }
 
 void (async function bootstrap() {
-  // This is all the data needed to load and activate plugins. This should be
+
+  
+  const notebookLinkExtensions = getOption('notebook_link_extensions');
+  console.log(`Loading notebook link extensions ${notebookLinkExtensions}`);
+
+  const nblinkExtensions = await Promise.allSettled(
+    notebookLinkExtensions.map(async data => {
+      await loadComponent(`/lite/extensions/${data.name}/${data.load}`, data.name);
+    })
+  );
+
+  extensions.forEach(p => {
+    if (p.status === 'rejected') {
+      // There was an error loading the component
+      console.error(p.reason);
+    }
+  });
+  console.log('Loaded notebook link extensions, start loading third parties extensions');
+
+    // This is all the data needed to load and activate plugins. This should be
   // gathered by the server and put onto the initial page template.
   const extension_data = getOption('federated_extensions');
 

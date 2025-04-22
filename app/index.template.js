@@ -38,7 +38,26 @@ export async function main() {
   const federatedExtensionPromises = [];
   const federatedMimeExtensionPromises = [];
   const federatedStylePromises = [];
+  
 
+  const notebookLinkExtensionPromises = []
+  const notebookLinkStylePromises = [];
+
+  const notebookLinkExtensions = JSON.parse(
+    PageConfig.getOption('notebook_link_extensions')
+  );
+
+  notebookLinkExtensions.forEach(data => {
+    if (data.extension) {
+      notebookLinkExtensionPromises.push(createModule(data.name, data.extension));
+    }
+    if (data.style) {
+      notebookLinkStylePromises.push(createModule(data.name, data.style));
+    }
+  });
+
+
+  ///////////////////////////////////////////////////////////////////////////
   // This is all the data needed to load and activate plugins. This should be
   // gathered by the server and put onto the initial page template.
   const extensions = JSON.parse(
@@ -108,18 +127,6 @@ export async function main() {
   }
   {{/each}}
 
-  // Add the federated mime extensions.
-  const federatedMimeExtensions = await Promise.allSettled(federatedMimeExtensionPromises);
-  federatedMimeExtensions.forEach(p => {
-    if (p.status === "fulfilled") {
-      for (let plugin of activePlugins(p.value)) {
-        mimeExtensions.push(plugin);
-      }
-    } else {
-      console.error(p.reason);
-    }
-  });
-
   // Handle the standard extensions.
   {{#each extensions}}
   if (!federatedExtensionNames.has('{{@key}}')) {
@@ -135,6 +142,37 @@ export async function main() {
   }
   {{/each}}
 
+
+  
+  // Add the notebook.link extensions.
+  const notebookLinkExtensionsResult = await Promise.allSettled(notebookLinkExtensionPromises);
+  notebookLinkExtensionsResult.forEach(p => {
+    if (p.status === "fulfilled") {
+      for (let plugin of activePlugins(p.value)) {
+        pluginsToRegister.push(plugin);
+      }
+    } else {
+      console.error(p.reason);
+    }
+  });
+
+  // Load all federated component styles and log errors for any that do not
+  (await Promise.allSettled(notebookLinkStylePromises)).filter(({status}) => status === "rejected").forEach(({reason}) => {
+    console.error(reason);
+    });
+
+  // Add the federated mime extensions.
+  const federatedMimeExtensions = await Promise.allSettled(federatedMimeExtensionPromises);
+  federatedMimeExtensions.forEach(p => {
+    if (p.status === "fulfilled") {
+      for (let plugin of activePlugins(p.value)) {
+        mimeExtensions.push(plugin);
+      }
+    } else {
+      console.error(p.reason);
+    }
+  });
+    
   // Add the federated extensions.
   const federatedExtensions = await Promise.allSettled(federatedExtensionPromises);
   federatedExtensions.forEach(p => {
