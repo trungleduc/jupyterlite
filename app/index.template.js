@@ -44,7 +44,7 @@ export async function main() {
   const notebookLinkStylePromises = [];
 
   const notebookLinkExtensions = JSON.parse(
-    PageConfig.getOption('notebook_link_extensions')
+    PageConfig.getOption('notebookLinkExtensions')
   );
 
   notebookLinkExtensions.forEach(data => {
@@ -56,6 +56,22 @@ export async function main() {
     }
   });
 
+  // Add the notebook.link extensions.
+  const notebookLinkExtensionsResult = await Promise.allSettled(notebookLinkExtensionPromises);
+  notebookLinkExtensionsResult.forEach(p => {
+    if (p.status === "fulfilled") {
+      for (let plugin of activePlugins(p.value)) {
+        pluginsToRegister.push(plugin);
+      }
+    } else {
+      console.error(p.reason);
+    }
+  });
+
+  // Load all notebook.link styles and log errors for any that do not
+  (await Promise.allSettled(notebookLinkStylePromises)).filter(({status}) => status === "rejected").forEach(({reason}) => {
+    console.error(reason);
+    });
 
   ///////////////////////////////////////////////////////////////////////////
   // This is all the data needed to load and activate plugins. This should be
@@ -142,25 +158,6 @@ export async function main() {
   }
   {{/each}}
 
-
-  
-  // Add the notebook.link extensions.
-  const notebookLinkExtensionsResult = await Promise.allSettled(notebookLinkExtensionPromises);
-  notebookLinkExtensionsResult.forEach(p => {
-    if (p.status === "fulfilled") {
-      for (let plugin of activePlugins(p.value)) {
-        pluginsToRegister.push(plugin);
-      }
-    } else {
-      console.error(p.reason);
-    }
-  });
-
-  // Load all federated component styles and log errors for any that do not
-  (await Promise.allSettled(notebookLinkStylePromises)).filter(({status}) => status === "rejected").forEach(({reason}) => {
-    console.error(reason);
-    });
-
   // Add the federated mime extensions.
   const federatedMimeExtensions = await Promise.allSettled(federatedMimeExtensionPromises);
   federatedMimeExtensions.forEach(p => {
@@ -199,7 +196,6 @@ export async function main() {
   // 3. Get and resolve the service manager and connection status plugins
   const IServiceManager = require('@jupyterlab/services').IServiceManager;
   const serviceManager = await pluginRegistry.resolveRequiredService(IServiceManager);
-
   // create the application
   const app = new {{ appClassName }}({
     pluginRegistry,
