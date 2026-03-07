@@ -1,3 +1,6 @@
+import { ServiceWorkerProxy } from './service-worker-proxy';
+
+const SERVICE_WORKER_PROXY = new ServiceWorkerProxy();
 /**
  * The name of the cache
  */
@@ -19,6 +22,7 @@ let enableCache = false;
 self.addEventListener('install', onInstall);
 self.addEventListener('activate', onActivate);
 self.addEventListener('fetch', onFetch);
+self.addEventListener('message', onMessage);
 
 // Event handlers
 
@@ -40,28 +44,54 @@ function onActivate(event: ExtendableEvent): void {
   event.waitUntil(self.clients.claim());
 }
 
+function onMessage(msg: MessageEvent<{ type: string; data: any }>): void {
+  const { type } = msg.data;
+
+  switch (type) {
+    case 'INIT_PROXY': {
+      const serviceWorkerToMain = msg.ports[0];
+      const clientId = (msg.source as any).id;
+      SERVICE_WORKER_PROXY.registerComm(clientId, serviceWorkerToMain);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 /**
  * Handle fetching a single resource.
  */
-async function onFetch(event: FetchEvent): Promise<void> {
-  const { request } = event;
-
+function onFetch(event: FetchEvent): void {
+  const { request, clientId } = event;
   const url = new URL(event.request.url);
+
   if (url.pathname === '/api/service-worker-heartbeat') {
     event.respondWith(new Response('ok'));
     return;
   }
 
-  let responsePromise: Promise<Response> | null = null;
   if (shouldBroadcast(url)) {
-    responsePromise = broadcastOne(request, url);
-  } else if (!shouldDrop(request, url)) {
-    responsePromise = maybeFromCache(event);
+    event.respondWith(broadcastOne(request, url));
+    return;
   }
 
-  if (responsePromise) {
-    event.respondWith(responsePromise);
+  event.respondWith(handleFetch(event, request, clientId, url));
+}
+
+async function handleFetch(
+  event: FetchEvent,
+  request: Request,
+  clientId: string,
+  url: URL,
+): Promise<Response> {
+  if (await SERVICE_WORKER_PROXY.shouldHandle({ clientId, request })) {
+    return SERVICE_WORKER_PROXY.generateResponse({ clientId, request });
   }
+  if (!shouldDrop(request, url)) {
+    return maybeFromCache(event);
+  }
+  return fetch(request);
 }
 
 // utilities

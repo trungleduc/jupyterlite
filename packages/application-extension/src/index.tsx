@@ -37,10 +37,14 @@ import { clearIcon, downloadIcon, linkIcon } from '@jupyterlab/ui-components';
 import { ILiteRouter, LiteRouter } from '@jupyterlite/application';
 
 import {
+  ILiteProxyManager,
   IServiceWorkerManager,
+  LiteProxyManager,
   LiteWorkspaceManager,
   ServiceWorkerManager,
 } from '@jupyterlite/apputils';
+
+import { expose } from 'comlink';
 
 import { BrowserStorageDrive, IKernelClient, Settings } from '@jupyterlite/services';
 
@@ -59,6 +63,7 @@ import { Widget } from '@lumino/widgets';
 import React from 'react';
 
 import { ClearDataDialog } from './clear-data-dialog';
+import { PromiseDelegate } from '@lumino/coreutils';
 
 /**
  * A regular expression to match path to notebooks, documents and consoles
@@ -821,6 +826,38 @@ const modeSupport: JupyterFrontEndPlugin<void> = {
   },
 };
 
+const proxyManagerPlugin: JupyterFrontEndPlugin<ILiteProxyManager> = {
+  id: '@jupyterlite/application-extension:proxy-manager',
+  description: 'The proxy manager plugin.',
+  autoStart: true,
+  provides: ILiteProxyManager,
+  requires: [IServiceWorkerManager],
+  activate: async (
+    app: JupyterFrontEnd,
+    serviceWorkerManager: IServiceWorkerManager,
+  ): Promise<ILiteProxyManager> => {
+    const swPromise = new PromiseDelegate<ServiceWorkerRegistration | null>();
+    serviceWorkerManager.registrationChanged.connect(async (_, wsReg) => {
+      await serviceWorkerManager.ready;
+      swPromise.resolve(wsReg);
+    });
+    const swReg = await swPromise.promise;
+    if (!swReg || !swReg.active) {
+      throw new Error('Service worker not found');
+    }
+
+    const serviceWorker = swReg.active;
+    const { port1: mainToServiceWorker, port2: serviceWorkerToMain } =
+      new MessageChannel();
+    const connectionManager = new LiteProxyManager();
+
+    expose(connectionManager, mainToServiceWorker);
+    serviceWorker.postMessage({ type: 'INIT_PROXY', data: {} }, [serviceWorkerToMain]);
+
+    return connectionManager;
+  },
+};
+
 const plugins: JupyterFrontEndPlugin<any>[] = [
   about,
   clearBrowserData,
@@ -835,6 +872,7 @@ const plugins: JupyterFrontEndPlugin<any>[] = [
   serviceWorkerManagerPlugin,
   sessionContextPatch,
   shareFile,
+  proxyManagerPlugin,
 ];
 
 export default plugins;

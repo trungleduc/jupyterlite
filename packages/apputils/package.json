@@ -31,11 +31,11 @@
     "src/**/*.{ts,tsx}"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && rspack --config rspack.config.js",
     "clean": "rimraf lib && rimraf tsconfig.tsbuildinfo",
     "docs": "typedoc src",
     "prepublishOnly": "npm run build",
-    "watch": "tsc -b --watch"
+    "watch": "tsc -b --watch && rspack --watch --config rspack.config.watch.js"
   },
   "dependencies": {
     "@jupyterlab/application": "~4.6.0-alpha.3",
@@ -58,6 +58,8 @@
     "mock-socket": "^9.3.1"
   },
   "devDependencies": {
+    "@rspack/cli": "^1.7.3",
+    "@rspack/core": "^1.7.3",
     "@types/serviceworker": "^0.0.56",
     "rimraf": "~5.0.1",
     "typescript": "~5.5.4"

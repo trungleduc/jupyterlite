@@ -9,3 +9,4 @@ export * from './tokens';
 export * from './workspaces';
 export * from './workspace-router';
 export * from './service-worker-manager';
+export * from './proxy-manager';

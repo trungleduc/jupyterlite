@@ -84,3 +84,44 @@ export namespace IServiceWorkerManager {
 }
 
 export const WORKER_NAME = `${SW_URL}`.split('/').slice(-1)[0];
+
+/**
+ * The token for the proxy registry.
+ */
+export const ILiteProxyManager = new Token<ILiteProxyManager>(
+  '@jupyterlite/services:ILiteProxyManager',
+  'A service for managing in-browser proxy',
+);
+
+/**
+ * Interface for the exporter registry.
+ */
+export interface ILiteProxyManager {
+  /**
+   * Register a new hanbler.
+   *
+   * @param format The export format name
+   * @param exporter The exporter instance
+   */
+  register(options: {
+    shouldHandle: (req: Request) => boolean;
+    handler: (req: Request, res?: Response) => Response | Promise<Response>;
+  }): void;
+}
+
+export type SerializedRequest = {
+  urlPath: string;
+  method: string;
+  headers: Record<string, string>;
+  params: string;
+};
+
+export type GenerateResponseOptions = SerializedRequest & {
+  requestBody?: ArrayBuffer;
+};
+
+export type GenerateResponseResult = {
+  headers: Record<string, string>;
+  content: string | ArrayBuffer;
+  status_code: number;
+};

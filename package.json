@@ -27,7 +27,7 @@
   "scripts": {
     "build": "jlpm build:lib && jlpm build:app",
     "build:app": "jlpm workspaces foreach -pvi --include @jupyterlite/app run build",
-    "build:lib": "jlpm workspaces foreach -tv --include @jupyterlite/metapackage run build",
+    "build:lib": "jlpm workspaces foreach -tv --include @jupyterlite/metapackage run build && jlpm workspaces foreach -tv --include @jupyterlite/apputils run build",
     "build:prod": "jlpm build:lib && jlpm workspaces foreach -tv --include @jupyterlite/app run build:prod",
     "build:py": "cd py/jupyterlite-core && hatch build ../../dist && cd ../jupyterlite && hatch build ../../dist",
     "clean": "jlpm workspaces foreach -A run clean",
